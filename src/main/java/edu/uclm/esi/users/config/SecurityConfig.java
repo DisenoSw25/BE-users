@@ -55,7 +55,7 @@ public class SecurityConfig {
                                                        // producción)
                 .cors(Customizer.withDefaults()) // Habilitar CORS
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users/login", "/users/registro").permitAll() // Permitir acceso a todos los usuarios
+                        .requestMatchers("/users/login", "/users/registro", "/test-send-email").permitAll() // Permitir acceso a todos los usuarios
                         .anyRequest().authenticated()) // Requerir autenticación para cualquier otra solicitud
                 .oauth2ResourceServer(oauth2 -> oauth2 // NUEVO
                         .jwt(Customizer.withDefaults())) // Configurar JWT para el servidor de recursos

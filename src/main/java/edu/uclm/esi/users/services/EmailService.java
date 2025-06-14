@@ -20,7 +20,7 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(user.getEmail());
         message.setSubject("Verifica tu cuenta");
-        message.setText("Haz clic en el siguiente enlace para verificar tu cuenta: " + verificationUrl);
+        message.setText("\t\t----BIENVENIDO----\n Haz clic en el siguiente enlace para verificar tu cuenta: " + verificationUrl);
 
         mailSender.send(message);
     }
