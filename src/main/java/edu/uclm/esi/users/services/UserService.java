@@ -1,8 +1,7 @@
 package edu.uclm.esi.users.services;
 
+import java.time.Instant;
 import java.util.Optional;
-
-
 
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.HttpStatus;
@@ -11,7 +10,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import edu.uclm.esi.users.model.PasswordResetToken;
 import edu.uclm.esi.users.model.User;
+import edu.uclm.esi.users.security.TokenService;
+import edu.uclm.esi.users.dao.PasswordResetTokenDAO;
 import edu.uclm.esi.users.dao.UserDAO;
 
 import jakarta.servlet.http.HttpSession;
@@ -23,13 +25,18 @@ public class UserService {
 
 	private final UserDAO userDAO;
 	private final BCryptPasswordEncoder passwordEncoder;
+	private final PasswordResetTokenDAO passwordResetTokenDAO;
+	private final TokenService tokenService;
 
 	private ConcurrentHashMap<String, Integer> loginAttempts = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, Long> blockedSessions = new ConcurrentHashMap<>();
 
-	public UserService(UserDAO userDAO, BCryptPasswordEncoder passwordEncoder) {
+	public UserService(UserDAO userDAO, BCryptPasswordEncoder passwordEncoder,
+			PasswordResetTokenDAO passwordResetTokenDAO, TokenService tokenService) {
 		this.userDAO = userDAO;
 		this.passwordEncoder = passwordEncoder;
+		this.passwordResetTokenDAO = passwordResetTokenDAO;
+		this.tokenService = tokenService;
 	}
 
 	public User registerUser(User user) {
@@ -43,7 +50,6 @@ public class UserService {
 		return userDAO.save(user);
 	}
 
-	
 	public User login(User user, HttpSession session) {
 
 		String sessionId = session.getId();
@@ -59,26 +65,26 @@ public class UserService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Formato del email incorrecto");
 
 		}
-		
+
 		Optional<User> userdb = userDAO.findByEmail(email);
-		
-		//existe
-        if(!userdb.isPresent()){
-            throw new UsernameNotFoundException("Usuario no encontrado");
-        }
-      
-        // Verificar contraseña
-        if (!passwordEncoder.matches(password, userdb.get().getPassword())) {
-        	incrementAttempts(sessionId);
-			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario o contraseña incorrectos");
-        }
-        
-        //Ver si está verificado
-        if (!userdb.get().isVerified()) {
-    		throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cuenta no verificada");
+
+		// existe
+		if (!userdb.isPresent()) {
+			throw new UsernameNotFoundException("Usuario no encontrado");
 		}
-        resetAttempts(sessionId);
-        return userdb.get();
+
+		// Verificar contraseña
+		if (!passwordEncoder.matches(password, userdb.get().getPassword())) {
+			incrementAttempts(sessionId);
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario o contraseña incorrectos");
+		}
+
+		// Ver si está verificado
+		if (!userdb.get().isVerified()) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cuenta no verificada");
+		}
+		resetAttempts(sessionId);
+		return userdb.get();
 	}
 
 	// Bloquear sesión por intentos fallidos
@@ -93,7 +99,7 @@ public class UserService {
 		}
 		return false;
 	}
-	
+
 	// Sumar intentos fallidos login
 	private void incrementAttempts(String sessionId) {
 		loginAttempts.merge(sessionId, 1, Integer::sum);
@@ -108,22 +114,29 @@ public class UserService {
 	}
 
 	public boolean emailFormatoValido(User user) {
-		/*boolean emailValido = false;
-		if (user.comprobarFormatoEmail())
-			emailValido = true;
-
-		return emailValido;*/
+		/*
+		 * boolean emailValido = false; if (user.comprobarFormatoEmail()) emailValido =
+		 * true;
+		 * 
+		 * return emailValido;
+		 */
 		return true;
 	}
 
-	//verificar email
+	// verificar email
 	public void verificarEmail(String email) {
 		User user = findUserByEmail(email);
 		user.setVerified(true);
 		userDAO.save(user);
 	}
-	
-	//obtener crédito
+
+	// comprobar verificado
+	public boolean isEmailVerified(String email) {
+		User user = findUserByEmail(email);
+		return user.isVerified();
+	}
+
+	// obtener crédito
 	public double obtenerCreditoPorEmail(String email) {
 		User user = findUserByEmail(email);
 		return user.getCredito();
@@ -133,11 +146,47 @@ public class UserService {
 	private User findUserByEmail(String email) {
 		Optional<User> userOpt = userDAO.findByEmail(email);
 
-		if(!userOpt.isPresent()){
-            throw new UsernameNotFoundException("Usuario no encontrado");
-        }
+		if (!userOpt.isPresent()) {
+			throw new UsernameNotFoundException("Usuario no encontrado");
+		}
 
 		return userOpt.get();
 	}
-}
 
+	// ---------------Recuperación de contraseña----------------
+	public void iniciarRecuperacionPassword(String email, TokenService tokenService, EmailService emailService,
+			PasswordResetTokenDAO tokenDAO) {
+		User user = findUserByEmail(email);
+		String token = tokenService.generatePasswordResetToken(email);
+		Instant expiry = Instant.now().plusSeconds(900);
+
+		PasswordResetToken resetToken = new PasswordResetToken(token, user, expiry);
+		tokenDAO.save(resetToken);
+		emailService.sendPasswordResetEmail(user, token);
+	}
+
+	// Cambiar contraseña con token de recuperación
+	public void cambiarPasswordConToken(String token, String nuevaPassword) {
+	    PasswordResetToken resetToken = passwordResetTokenDAO.findById(token)
+	        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token no encontrado"));
+
+	    if (resetToken.isUsed()) {
+	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este token ya ha sido usado");
+	    }
+
+	    if (resetToken.getExpiresAt().isBefore(Instant.now())) {
+	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado");
+	    }
+
+	    String email = tokenService.validatePasswordResetToken(token);
+	    User user = resetToken.getUser();  // Aquí asumes que el token ya tiene el usuario vinculado
+
+	    user.setPassword(passwordEncoder.encode(nuevaPassword));
+	    userDAO.save(user);
+
+	    resetToken.setUsed(true);
+	    passwordResetTokenDAO.save(resetToken);
+	}
+
+
+}

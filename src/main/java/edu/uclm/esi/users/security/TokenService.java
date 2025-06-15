@@ -26,7 +26,7 @@ public class TokenService {
         this.jwtEncoder = jwtEncoder;
         this.jwtDecoder = jwtDecoder;
     }
- // NUEVO
+     // generar un token de verificación de email
     public String generateVerificationToken(Authentication authentication) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -40,7 +40,7 @@ public class TokenService {
         return this.jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }
 
-    // NUEVO
+    //validar el token de verificación de email
     public String validateVerificationToken(String token) {
         try {
             Jwt jwt = jwtDecoder.decode(token);
@@ -54,6 +54,8 @@ public class TokenService {
             throw new IllegalArgumentException("Token inválido o expirado");
         }
     }
+    
+    // generar un token de acceso normal
     public String generateToken(Authentication authentication) {
         Instant now = Instant.now();
         String scope = authentication.getAuthorities().stream()
@@ -81,4 +83,34 @@ public class TokenService {
 
         return new UsernamePasswordAuthenticationToken(username, null, authorities);
     }
+    
+    // Generar un token de recuperación de contraseña
+    public String generatePasswordResetToken(String email) {
+        Instant now = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("self")
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(900)) // 15 minutos
+                .subject(email)
+                .claim("purpose", "passwordReset")
+                .build();
+
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+    }
+
+    // Validar el token de recuperación de contraseña
+    public String validatePasswordResetToken(String token) {
+        try {
+            Jwt jwt = jwtDecoder.decode(token);
+
+            if (!"passwordReset".equals(jwt.getClaimAsString("purpose"))) {
+                throw new IllegalArgumentException("Token no válido para recuperación");
+            }
+
+            return jwt.getSubject();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Token inválido o expirado");
+        }
+    }
+
 }

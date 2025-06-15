@@ -61,6 +61,17 @@ public class UserController {
 		}
 	}
 	
+	//check verificado
+	@GetMapping("/checkVerificado/{email}")
+	public ResponseEntity<Map<String, Boolean>> isVerified(@PathVariable String email) {
+		try {
+			boolean isVerified = userService.isEmailVerified(email);
+			return ResponseEntity.ok(Map.of("verificado", isVerified));
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		}
+	}
+	
 	@PostMapping("/registro")
 	public ResponseEntity<String> registrar(@RequestBody User user) {
 		try {
@@ -112,5 +123,7 @@ public class UserController {
 		}
 	}
 	
+
+
 	
 }

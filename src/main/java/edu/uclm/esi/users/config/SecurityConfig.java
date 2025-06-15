@@ -55,7 +55,8 @@ public class SecurityConfig {
                                                        // producción)
                 .cors(Customizer.withDefaults()) // Habilitar CORS
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users/login", "/users/registro", "/test-send-email").permitAll() // Permitir acceso a todos los usuarios
+                        .requestMatchers("/users/login", "/users/registro", "/test-send-email", 
+                        		"password/forgotPassword", "password/resetPassword", "users/checkVerificado/**").permitAll() // Permitir acceso a todos los usuarios
                         .anyRequest().authenticated()) // Requerir autenticación para cualquier otra solicitud
                 .oauth2ResourceServer(oauth2 -> oauth2 // NUEVO
                         .jwt(Customizer.withDefaults())) // Configurar JWT para el servidor de recursos
@@ -103,9 +104,9 @@ public class SecurityConfig {
         return source;
     }
 
-    private final RsaKeyProperties properties; // NUEVO
+    // Inyectar las propiedades de la clave RSA
+    private final RsaKeyProperties properties; 
 
-    // NUEVO
     public SecurityConfig(RsaKeyProperties properties) {
         this.properties = properties;
     }
@@ -115,8 +116,9 @@ public class SecurityConfig {
         return new JwtCookieAuthenticationFilter(jwtDecoder);
     }
 
+    //decodificar y codificar JWT usando las claves RSA
     @Bean
-    JwtDecoder jwtDecoder() { // NUEVO
+    JwtDecoder jwtDecoder() { 
         return NimbusJwtDecoder.withPublicKey(properties.publicKey()).build(); // Usar la clave pública para decodificar
                                                                                // JWT
     }
