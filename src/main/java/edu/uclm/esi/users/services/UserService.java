@@ -179,7 +179,7 @@ public class UserService {
 	    }
 
 	    String email = tokenService.validatePasswordResetToken(token);
-	    User user = resetToken.getUser();  // Aquí asumes que el token ya tiene el usuario vinculado
+	    User user = resetToken.getUser();  // el token ya tiene el usuario vinculado
 
 	    user.setPassword(passwordEncoder.encode(nuevaPassword));
 	    userDAO.save(user);

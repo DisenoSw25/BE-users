@@ -22,6 +22,7 @@ import java.util.Arrays;
 public class JwtCookieAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtDecoder jwtDecoder;
+    
 
     public JwtCookieAuthenticationFilter(JwtDecoder jwtDecoder) {
         this.jwtDecoder = jwtDecoder;
