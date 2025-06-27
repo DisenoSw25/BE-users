@@ -80,9 +80,9 @@ public class UserService {
 		}
 
 		// Ver si está verificado
-//		if (!userdb.get().isVerified()) {
-//			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cuenta no verificada");
-//		}
+		if (!userdb.get().isVerified()) {
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Cuenta no verificada");
+		}
 		resetAttempts(sessionId);
 		return userdb.get();
 	}
