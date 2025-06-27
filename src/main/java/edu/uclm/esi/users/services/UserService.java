@@ -5,6 +5,8 @@ import java.util.Optional;
 
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -167,26 +169,41 @@ public class UserService {
 
 	// Cambiar contraseña con token de recuperación
 	public void cambiarPasswordConToken(String token, String nuevaPassword) {
-	    PasswordResetToken resetToken = passwordResetTokenDAO.findById(token)
-	        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token no encontrado"));
+		PasswordResetToken resetToken = passwordResetTokenDAO.findById(token)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token no encontrado"));
 
-	    if (resetToken.isUsed()) {
-	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este token ya ha sido usado");
-	    }
+		if (resetToken.isUsed()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este token ya ha sido usado");
+		}
 
-	    if (resetToken.getExpiresAt().isBefore(Instant.now())) {
-	        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado");
-	    }
+		if (resetToken.getExpiresAt().isBefore(Instant.now())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado");
+		}
 
-	    String email = tokenService.validatePasswordResetToken(token);
-	    User user = resetToken.getUser();  // el token ya tiene el usuario vinculado
+		String email = tokenService.validatePasswordResetToken(token);
+		User user = resetToken.getUser(); // el token ya tiene el usuario vinculado
 
-	    user.setPassword(passwordEncoder.encode(nuevaPassword));
-	    userDAO.save(user);
+		user.setPassword(passwordEncoder.encode(nuevaPassword));
+		userDAO.save(user);
 
-	    resetToken.setUsed(true);
-	    passwordResetTokenDAO.save(resetToken);
+		resetToken.setUsed(true);
+		passwordResetTokenDAO.save(resetToken);
 	}
 
+	public void addCredits(double creditsToAdd) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName(); // email del usuario logueado
+		Optional<User> optionalUser = userDAO.findByEmail(email);
+		if (optionalUser.isEmpty()) {
+			throw new IllegalArgumentException("Usuario no encontrado");
+		}
+
+		User user = optionalUser.get();
+		double currentCredits = user.getCredito();
+		double newTotal = currentCredits + creditsToAdd;
+		user.setCredito(newTotal);
+
+		userDAO.save(user);
+	}
 
 }
