@@ -64,7 +64,7 @@ public class TokenService {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("self") // Cambia esto por tu URL de emisor
                 .issuedAt(now)
-                .expiresAt(now.plusSeconds(3600)) // Token válido por 1 hora
+                .expiresAt(now.plusSeconds(86400)) // Token válido por 1 día
                 .subject(authentication.getName())
                 .claim("scope", scope)
                 .claim("isAuthenticated", authentication.isAuthenticated())
