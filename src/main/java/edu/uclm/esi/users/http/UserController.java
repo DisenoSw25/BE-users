@@ -51,15 +51,19 @@ public class UserController {
 	
 	@GetMapping("/verificar")
 	public ResponseEntity<String> verificarCuenta(@RequestParam String token) {
-		try {
-			String email = tokenService.validateVerificationToken(token);
-			userService.verificarEmail(email);
+	    try {
+	        String email = tokenService.validateVerificationToken(token);
+	        userService.verificarEmail(email);
 
-			return ResponseEntity.ok("Cuenta verificada correctamente.");
-		} catch (IllegalArgumentException e) {
-			return ResponseEntity.badRequest().body(e.getMessage());
-		}
+	        String responseHtml = "<p>Cuenta verificada correctamente.</p>"
+	                            + "<a href='http://localhost:4200/login'>Ir al Login</a>";
+	        return ResponseEntity.ok().header("Content-Type", "text/html").body(responseHtml);
+
+	    } catch (IllegalArgumentException e) {
+	        return ResponseEntity.badRequest().body(e.getMessage());
+	    }
 	}
+
 	
 	//check verificado
 	@GetMapping("/checkVerificado/{email}")
