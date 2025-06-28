@@ -5,6 +5,8 @@ import java.util.Optional;
 
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -153,7 +155,7 @@ public class UserService {
 		return userOpt.get();
 	}
 
-	// Paso 1: Iniciar recuperación
+// Paso 1: Iniciar recuperación
 	public void iniciarRecuperacionPassword(String email, TokenService tokenService,
 			EmailService emailService, PasswordResetTokenDAO tokenDAO) {
 		User user = findUserByEmail(email);
@@ -187,5 +189,20 @@ public class UserService {
 		passwordResetTokenDAO.save(resetToken);
 	}
 
+	public void addCredits(double creditsToAdd) {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName(); // email del usuario logueado
+		Optional<User> optionalUser = userDAO.findByEmail(email);
+		if (optionalUser.isEmpty()) {
+			throw new IllegalArgumentException("Usuario no encontrado");
+		}
+
+		User user = optionalUser.get();
+		double currentCredits = user.getCredito();
+		double newTotal = currentCredits + creditsToAdd;
+		user.setCredito(newTotal);
+
+		userDAO.save(user);
+	}
 
 }
