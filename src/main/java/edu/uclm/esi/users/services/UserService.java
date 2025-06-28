@@ -155,33 +155,32 @@ public class UserService {
 		return userOpt.get();
 	}
 
-	// ---------------Recuperación de contraseña----------------
-	public void iniciarRecuperacionPassword(String email, TokenService tokenService, EmailService emailService,
-			PasswordResetTokenDAO tokenDAO) {
+// Paso 1: Iniciar recuperación
+	public void iniciarRecuperacionPassword(String email, TokenService tokenService,
+			EmailService emailService, PasswordResetTokenDAO tokenDAO) {
 		User user = findUserByEmail(email);
 		String token = tokenService.generatePasswordResetToken(email);
-		Instant expiry = Instant.now().plusSeconds(900);
+		Instant expiry = Instant.now().plusSeconds(900); // 15 minutos
 
 		PasswordResetToken resetToken = new PasswordResetToken(token, user, expiry);
 		tokenDAO.save(resetToken);
+
 		emailService.sendPasswordResetEmail(user, token);
 	}
 
-	// Cambiar contraseña con token de recuperación
+	// Paso 3: Resetear contraseña
 	public void cambiarPasswordConToken(String token, String nuevaPassword) {
 		PasswordResetToken resetToken = passwordResetTokenDAO.findById(token)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token no encontrado"));
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token no encontrado"));
 
-		if (resetToken.isUsed()) {
+		if (resetToken.isUsed())
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Este token ya ha sido usado");
-		}
 
-		if (resetToken.getExpiresAt().isBefore(Instant.now())) {
+		if (resetToken.getExpiresAt().isBefore(Instant.now()))
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado");
-		}
 
-		String email = tokenService.validatePasswordResetToken(token);
-		User user = resetToken.getUser(); // el token ya tiene el usuario vinculado
+		String email = tokenService.validatePasswordResetToken(token); 
+		User user = resetToken.getUser();
 
 		user.setPassword(passwordEncoder.encode(nuevaPassword));
 		userDAO.save(user);
